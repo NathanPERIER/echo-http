@@ -1,228 +1,129 @@
+import { RequestData } from './data.js';
 import { Request, Response } from 'express';
 import escape from 'escape-html';
 
 
-const document_begin = `
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <title>Template</title>
-    <link rel="icon" href="./favicon.ico" type="image/x-icon">
-	<style>
-	:root {
-		--col-primary: #04B329;
-		--col-accent: #dedede;
-		--col-secondary: #32c2e3;
-		--col-secondary-light: #79d8ed;
-		--col-secondary-dark: #09b3d9;
-		--col-secondary-darker: #0aa0c2;
-	}
-	
-	body {
-		margin: 0px;
-		padding: 8px;
-		/* font-family: sans-serif; */
-		font-family: 'Fira Code', monospace;
-		font-size: 1rem;
-	}
-	
-	h1 {
-		margin: 0px;
-		padding: 5px;
-		display: block;
-		color: #FFFFFF;
-		background-color: var(--col-primary);
-		font-size: 1.5rem;
-	}
-	
-	h2, h3, p, table, ul, li, button, code[data-block] {
-		margin-bottom: 0px;
-	}
-	
-	p, table, ul, button, code[data-block] {
-		margin-top: 10px;
-	}
-	
-	p:nth-child(1) {
-		margin-top: 0px;
-	}
-	
-	h2 {
-		margin-top: 25px;
-		font-size: 1.5rem;
-	}
-	
-	h3 {
-		margin-top: 20px;
-		font-size: 1.2rem;
-	}
-	
-	li {
-		margin-top: 4px;
-	}
-	
-	#request-content {
-		padding-left: 10px;
-		padding-right: 5px;
-	}
-	
-	#request-content > h2, 
-	#request-content > h3 {
-		padding-left: 10px;
-		border-left: 4px solid var(--col-primary);
-		/*border-bottom: 1px solid var(--col-accent);*/
-		border-radius: 3px;
-		text-transform: uppercase;
-	}
-	
-	code {
-		font-family: 'Fira Code', monospace;
-	}
-	
-	p code,
-	ul code,
-	table code,
-	code[data-block] {
-		display: inline-block;
-		background-color: #d4d4d4;
-		padding: 2px;
-		border-radius: 2px;
-	}
-	
-	code[data-block] {
-		display: block;
-		white-space: pre-wrap;
-		padding: 4px;
-		overflow: scroll;
-		overflow-wrap: break-word;
-		word-break: break-all;
-		hyphens: auto;
-	}
-	
-	
-	table {
-	    border-collapse: collapse;
-	}
-	
-	th, td {
-	    border: 2px solid black;
-		padding: 5px;
-	}
-	
-	button {
-		font-family: 'Fira Code', monospace;
-		background-color: var(--col-secondary);
-		padding: 6px;
-		border: none;
-		border-radius: 2px;
-	}
-	
-	button:hover {
-		background-color: var(--col-secondary-dark);
-	}
-	
-	button:active {
-		background-color: var(--col-secondary-darker);
-	}
-	
-	button:disabled {
-		background-color: var(--col-secondary-light);
-	}
-	
-	</style>
-  </head>
-  <body>
-`;
-
-const document_end = `
-  </body>
-</html>
-`;
-
 
 export function echo_handler(req: Request, res: Response) {
+	let data: RequestData = {
+		client: {
+			address: req.socket.remoteAddress!,
+			ip_family: req.socket.remoteFamily!,
+			port: req.socket.remotePort!
+		},
+		server: {
+			address: req.socket.localAddress!,
+			ip_family: req.socket.localFamily!,
+			port: req.socket.localPort!
+		},
+		secure: req.secure,
+		http_version: req.httpVersion,
+		method: req.method,
+		host: req.hostname === undefined ? (req.socket.localAddress as string) : req.hostname,
+		original_url: req.originalUrl,
+		path: req.path,
+		queries: new Map<string, string[]>(),
+		headers: new Map<string, string[]>()
+	};
 
-    // console.log(req.socket.remoteAddress)
-    // console.log(req.socket.remoteFamily)
-    // console.log(req.socket.remotePort)
-    // console.log(req.socket.localAddress)
-    // console.log(req.socket.localFamily)
-    // console.log(req.socket.localPort)
+	const queries = Object.entries(req.query);
+	if(queries.length > 0) {
+		for(let [param, value] of queries) {
+			if(typeof value === 'string') {
+				data.queries.set(param, [value]);
+			} else if(Array.isArray(value) && value.length > 0 && typeof value[0] === 'string') {
+				data.queries.set(param, value as string[]);
+			}
+			// TODO some other edge cases ?
+		}
+	}
 
-    const host = req.hostname === undefined ? (req.socket.localAddress as string) : req.hostname;
+	const headers = Object.entries(req.headersDistinct);
+	if(headers.length > 0) {
+		for(let [header, value] of headers) {
+			if(value === undefined || value.length === 0) {
+				continue;
+			}
+			data.headers.set(header, value);
+		}
+	}
+
+	const rsp = handle_html(data);
+
+	res.type(rsp.content_type);
+	res.send(rsp.lines.join('\n'));
+}
+
+
+export function handle_html(req: RequestData): {lines: string[], content_type: string} {
+
 	const protocol = req.secure ? 'HTTPS' : 'HTTP';
-	let host_with_port = host;
-	if(req.socket.localPort !== (req.secure ? 443 : 80)) {
-		host_with_port += `:${req.socket.localPort}`;
+	let host_with_port = req.host;
+	if(req.server.port !== (req.secure ? 443 : 80)) {
+		host_with_port += `:${req.server.port}`;
 	} 
-	const uri = `${protocol.toLowerCase()}://${host_with_port}${req.originalUrl}`
+	const uri = `${protocol.toLowerCase()}://${host_with_port}${req.original_url}`
 
-    let lines: string[] = [ 
-        `\t<h1>Request to ${host}</h1>`,
+    let lines: string[] = [
+		'<!DOCTYPE html>',
+		'<html lang="en">',
+		'<head>',
+		'\t<meta charset="UTF-8">',
+		'\t<title>Echo HTTP</title>',
+		'\t<link rel="icon" href="./favicon.ico" type="image/x-icon">',
+		'\t<style> /* TODO */ </style>',
+		'</head>',
+		'<body>',
+        `\t<h1>Request to ${req.host}</h1>`,
         '\t<div id="request-content">',
         '\t\t<h2>Request</h2>',
         `\t\t<p>Full URI: <code>${uri}</code></p>`,
         '\t\t<ul>',
         `\t\t\t<li>Method: <code>${req.method}</code></li>`,
-        `\t\t\t<li>Protocol: <code>${protocol}</code> (<code>HTTP/${req.httpVersion}</code>)</li>`,
-        `\t\t\t<li>Host: <code>${host}</code></li>`,
-        `\t\t\t<li>Port: <code>${req.socket.localPort}</code></li>`,
+        `\t\t\t<li>Protocol: <code>${protocol}</code> (<code>HTTP/${req.http_version}</code>)</li>`,
+        `\t\t\t<li>Host: <code>${req.host}</code></li>`,
+        `\t\t\t<li>Port: <code>${req.server.port}</code></li>`,
         `\t\t\t<li>Path: <code>${escape(req.path)}</code></li>`,
         '\t\t</ul>'
     ];
 
-	let queries = Object.entries(req.query);
-	if(queries.length > 0) {
+	
+	if(req.queries.size > 0) {
 		lines.push('\t\t<h3>Query parameters</h3>');
 		lines.push('\t\t<table>');
 		lines.push('\t\t\t<tr>');
 		lines.push('\t\t\t\t<th>Parameter</th>');
 		lines.push('\t\t\t\t<th>Value(s)</th>');
 		lines.push('\t\t\t</tr>');
-		for(let [param, value] of queries) {
-			if(typeof value === 'string') {
-				lines.push('\t\t\t<tr>');
-				lines.push(`\t\t\t\t<td><code>${escape(param)}</code></td>`);
-				lines.push(`\t\t\t\t<td><code>${escape(value)}</code></td>`);
-				lines.push('\t\t\t</tr>');
-			} else if(Array.isArray(value) && value.length > 0 && typeof value[0] === 'string') {
-				lines.push('\t\t\t<tr>');
-				lines.push(`\t\t\t\t<td><code>${escape(param)}</code></td>`);
-				lines.push('\t\t\t\t<td>');
-				for(let v of (value as string[])) {
-					lines.push(`\t\t\t\t\t<p><code>${escape(v)}</code></p>`);
-				}
-				lines.push('\t\t\t\t</td>');
-				lines.push('\t\t\t</tr>');
+		for(let [param, values] of req.queries.entries()) {
+			lines.push('\t\t\t<tr>');
+			lines.push(`\t\t\t\t<td><code>${escape(param)}</code></td>`);
+			lines.push('\t\t\t\t<td>');
+			for(let v of values) {
+				lines.push(`\t\t\t\t\t<p><code>${escape(v)}</code></p>`);
 			}
-			// TODO some other edge cases ?
+			lines.push('\t\t\t\t</td>');
+			lines.push('\t\t\t</tr>');
 		}
 		lines.push('\t\t</table>');
 	}
 
-    const headers = Object.entries(req.headersDistinct);
-	headers.sort((e1, e2) => e1[0].localeCompare(e2[0]));
-	if(headers.length > 0) {
+	if(req.headers.size > 0) {
 		lines.push('\t\t<h3>Headers</h3>');
 		lines.push('\t\t<table>');
 		lines.push('\t\t\t<tr>');
 		lines.push('\t\t\t\t<th>Header</th>');
 		lines.push('\t\t\t\t<th>Value(s)</th>');
 		lines.push('\t\t\t</tr>');
-		for(let [header, value] of headers) {
-			if(value !== undefined) {
-				if(value.length > 0) {
-					lines.push('\t\t\t<tr>');
-					lines.push(`\t\t\t\t<td><code>${escape(header)}</code></td>`);
-					lines.push('\t\t\t\t<td>');
-					for(let v of value) {
-						lines.push(`\t\t\t\t\t<p><code>${escape(v)}</code></p>`);
-					}
-					lines.push('\t\t\t\t</td>');
-					lines.push('\t\t\t</tr>');
-				}
+		for(let [header, values] of [...req.headers.entries()].sort((e1, e2) => e1[0].localeCompare(e2[0]))) {
+			lines.push('\t\t\t<tr>');
+			lines.push(`\t\t\t\t<td><code>${escape(header)}</code></td>`);
+			lines.push('\t\t\t\t<td>');
+			for(let v of values) {
+				lines.push(`\t\t\t\t\t<p><code>${escape(v)}</code></p>`);
 			}
+			lines.push('\t\t\t\t</td>');
+			lines.push('\t\t\t</tr>');
 		}
 		lines.push('\t\t</table>');
 	}
@@ -231,9 +132,10 @@ export function echo_handler(req: Request, res: Response) {
 // 		<code data-block id="body-text">...</code>
     
 	lines.push('\t</div>');
+	lines.push('\t</body>');
+	lines.push('</html>');
 
-    res.type('text/html');
-    res.send(document_begin + lines.join('\n') + document_end);
+	return { lines: lines, content_type: 'text/html' };
 }
 
 
