@@ -1,0 +1,120 @@
+
+:root {
+    --col-primary: #04B329;
+    --col-accent: #dedede;
+    --col-secondary: #32c2e3;
+    --col-secondary-light: #79d8ed;
+    --col-secondary-dark: #09b3d9;
+    --col-secondary-darker: #0aa0c2;
+}
+
+body {
+    margin: 0px;
+    padding: 8px;
+    /* font-family: sans-serif; */
+    font-family: 'Fira Code', monospace;
+    font-size: 1rem;
+}
+
+h1 {
+    margin: 0px;
+    padding: 5px;
+    display: block;
+    color: #FFFFFF;
+    background-color: var(--col-primary);
+    font-size: 1.5rem;
+}
+
+h2, h3, p, table, ul, li, button, code[data-block] {
+    margin-bottom: 0px;
+}
+
+p, table, ul, button, code[data-block] {
+    margin-top: 10px;
+}
+
+p:nth-child(1) {
+    margin-top: 0px;
+}
+
+h2 {
+    margin-top: 25px;
+    font-size: 1.5rem;
+}
+
+h3 {
+    margin-top: 20px;
+    font-size: 1.2rem;
+}
+
+li {
+    margin-top: 4px;
+}
+
+#request-content {
+    padding-left: 10px;
+    padding-right: 5px;
+}
+
+#request-content > h2, 
+#request-content > h3 {
+    padding-left: 10px;
+    border-left: 4px solid var(--col-primary);
+    /*border-bottom: 1px solid var(--col-accent);*/
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+code {
+    font-family: 'Fira Code', monospace;
+}
+
+p code,
+ul code,
+table code,
+code[data-block] {
+    display: inline-block;
+    background-color: #d4d4d4;
+    padding: 2px;
+    border-radius: 2px;
+}
+
+code[data-block] {
+    display: block;
+    white-space: pre-wrap;
+    padding: 4px;
+    overflow: scroll;
+    overflow-wrap: break-word;
+    word-break: break-all;
+    hyphens: auto;
+}
+
+
+table {
+    border-collapse: collapse;
+}
+
+th, td {
+    border: 2px solid black;
+    padding: 5px;
+}
+
+button {
+    font-family: 'Fira Code', monospace;
+    background-color: var(--col-secondary);
+    padding: 6px;
+    border: none;
+    border-radius: 2px;
+}
+
+button:hover {
+    background-color: var(--col-secondary-dark);
+}
+
+button:active {
+    background-color: var(--col-secondary-darker);
+}
+
+button:disabled {
+    background-color: var(--col-secondary-light);
+}
