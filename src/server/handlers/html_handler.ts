@@ -5,8 +5,8 @@ import escape from 'escape-html';
 
 
 interface HtmlAssets {
-    styles: string[]
-    
+    styles: string[],
+	icon?: Uint8Array
 }
 
 async function read_assets(assets_path: string): Promise<HtmlAssets> {
@@ -16,6 +16,10 @@ async function read_assets(assets_path: string): Promise<HtmlAssets> {
     assets.styles.push(
         (await async_fs.readFile(path.join(assets_path, "styles/style.css"), 'utf-8')).one_line()
     );
+	const icon_path = path.join(assets_path, "icon/favicon.ico");
+	if(await async_fs.access(icon_path)) {
+		assets.icon = await async_fs.readFile(icon_path, 'binary');
+	}
     return assets;
 }
 
