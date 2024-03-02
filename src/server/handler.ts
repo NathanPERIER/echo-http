@@ -1,5 +1,7 @@
 import { RequestData } from './data.js';
 import { handle_html } from './handlers/html_handler.js';
+import { handle_json } from './handlers/json_handler.js';
+import { handle_text } from './handlers/text_handler.js';
 import { Request, Response } from 'express';
 
 
@@ -8,6 +10,12 @@ enum EchoFormat {
 	JSON,
 	TEXT
 }
+
+const formatters = new Map([
+	[EchoFormat.HTML, handle_html],
+	[EchoFormat.JSON, handle_json],
+	[EchoFormat.TEXT, handle_text]
+])
 
 
 function determine_format(req: RequestData): EchoFormat {
@@ -89,7 +97,10 @@ export function echo_handler(req: Request, res: Response) {
 		}
 	}
 
-	const rsp = handle_html(data);
+	const format = determine_format(data);
+	const format_data = formatters.get(format)!;
+
+	const rsp = format_data(data);
 
 	res.type(rsp.content_type);
 	res.send(rsp.lines.join('\n'));
