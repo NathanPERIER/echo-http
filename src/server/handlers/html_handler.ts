@@ -5,8 +5,8 @@ import escape from 'escape-html';
 
 
 interface HtmlAssets {
-    styles: string[]
-    
+    styles: string[],
+	icon?: string
 }
 
 async function read_assets(assets_path: string): Promise<HtmlAssets> {
@@ -16,6 +16,11 @@ async function read_assets(assets_path: string): Promise<HtmlAssets> {
     assets.styles.push(
         (await async_fs.readFile(path.join(assets_path, "styles/style.css"), 'utf-8')).one_line()
     );
+	const icon_path = path.join(assets_path, "icon/favicon.ico");
+	try {
+		await async_fs.access(icon_path);
+		assets.icon = (await async_fs.readFile(icon_path)).toString('base64');
+	} catch { }
     return assets;
 }
 
@@ -37,23 +42,29 @@ export function handle_html(req: RequestData): {lines: string[], content_type: s
 		'<html lang="en">',
 		'<head>',
 		'\t<meta charset="UTF-8">',
-		'\t<title>Echo HTTP</title>',
-		'\t<link rel="icon" href="./favicon.ico" type="image/x-icon">',
+		'\t<title>Echo HTTP</title>'
+	];
+
+	if(ASSETS.icon !== undefined) {
+		lines.push(`\t<link rel="icon" href="data:image/x-icon;base64,${ASSETS.icon}" type="image/x-icon">`);
+	}
+
+	lines.push(
 		`\t<style>${ASSETS.styles[0]}</style>`,
 		'</head>',
 		'<body>',
-        `\t<h1>Request to ${req.host}</h1>`,
-        '\t<div id="request-content">',
-        '\t\t<h2>Request</h2>',
-        `\t\t<p>Full URI: <code>${uri}</code></p>`,
-        '\t\t<ul>',
-        `\t\t\t<li>Method: <code>${req.method}</code></li>`,
-        `\t\t\t<li>Protocol: <code>${protocol}</code> (<code>HTTP/${req.http_version}</code>)</li>`,
-        `\t\t\t<li>Host: <code>${req.host}</code></li>`,
-        `\t\t\t<li>Port: <code>${req.server.port}</code></li>`,
-        `\t\t\t<li>Path: <code>${escape(req.path)}</code></li>`,
-        '\t\t</ul>'
-    ];
+		`\t<h1>Request to ${req.host}</h1>`,
+		'\t<div id="request-content">',
+		'\t\t<h2>Request</h2>',
+		`\t\t<p>Full URI: <code>${uri}</code></p>`,
+		'\t\t<ul>',
+		`\t\t\t<li>Method: <code>${req.method}</code></li>`,
+		`\t\t\t<li>Protocol: <code>${protocol}</code> (<code>HTTP/${req.http_version}</code>)</li>`,
+		`\t\t\t<li>Host: <code>${req.host}</code></li>`,
+		`\t\t\t<li>Port: <code>${req.server.port}</code></li>`,
+		`\t\t\t<li>Path: <code>${escape(req.path)}</code></li>`,
+		'\t\t</ul>'
+	);
 
 	
 	if(req.queries.size > 0) {
