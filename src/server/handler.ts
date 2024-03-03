@@ -1,57 +1,7 @@
 import { RequestData } from './data.js';
-import { handle_html } from './handlers/html_handler.js';
-import { handle_json } from './handlers/json_handler.js';
-import { handle_text } from './handlers/text_handler.js';
+import { format_response } from './formatters/formats.js';
 import { is_content_printable } from '../utils/content_types.js';
 import { Request, Response } from 'express';
-
-
-enum EchoFormat {
-	HTML,
-	JSON,
-	TEXT
-}
-
-const formatters = new Map([
-	[EchoFormat.HTML, handle_html],
-	[EchoFormat.JSON, handle_json],
-	[EchoFormat.TEXT, handle_text]
-])
-
-
-function determine_format(req: RequestData): EchoFormat {
-	if(req.headers.has('echo-format')) {
-		const format_repr = req.headers.get('echo-format')![0].toLowerCase();
-		switch(format_repr) {
-			case 'html': return EchoFormat.HTML;
-			case 'json': return EchoFormat.JSON;
-			case 'text': return EchoFormat.TEXT;
-		}
-		// TODO error
-	}
-	if(req.path.endsWith('.html')) {
-		return EchoFormat.HTML;
-	}
-	if(req.path.endsWith('.json')) {
-		return EchoFormat.JSON;
-	}
-	if(req.path.endsWith('.txt')) {
-		return EchoFormat.TEXT;
-	}
-	if(req.headers.has('accept')) {
-		const accept_header = req.headers.get('accept')![0];
-		if(accept_header.includes('text/html')) {
-			return EchoFormat.HTML;
-		}
-		if(accept_header.includes('application/json')) {
-			return EchoFormat.JSON;
-		}
-		if(accept_header.includes('text/plain')) {
-			return EchoFormat.TEXT;
-		}
-	}
-	return EchoFormat.TEXT;
-}
 
 
 export function echo_handler(req: Request, res: Response) {
@@ -108,10 +58,7 @@ export function echo_handler(req: Request, res: Response) {
 		}
 	}
 
-	const format = determine_format(data);
-	const format_data = formatters.get(format)!;
-
-	const rsp = format_data(data);
+	const rsp = format_response(data);
 
 	res.type(rsp.content_type);
 	res.send(rsp.lines.join('\n'));
