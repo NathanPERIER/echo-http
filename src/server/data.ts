@@ -17,5 +17,6 @@ export interface RequestData {
     original_url: string,
     path: string,
     queries: Map<string, string[]>,
-    headers: Map<string, string[]>
+    headers: Map<string, string[]>,
+    body: string | Buffer | null
 }

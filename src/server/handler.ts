@@ -2,6 +2,7 @@ import { RequestData } from './data.js';
 import { handle_html } from './handlers/html_handler.js';
 import { handle_json } from './handlers/json_handler.js';
 import { handle_text } from './handlers/text_handler.js';
+import { is_content_printable } from '../utils/content_types.js';
 import { Request, Response } from 'express';
 
 
@@ -72,7 +73,8 @@ export function echo_handler(req: Request, res: Response) {
 		original_url: req.originalUrl,
 		path: req.path,
 		queries: new Map<string, string[]>(),
-		headers: new Map<string, string[]>()
+		headers: new Map<string, string[]>(),
+		body: null
 	};
 
 	const queries = Object.entries(req.query);
@@ -94,6 +96,15 @@ export function echo_handler(req: Request, res: Response) {
 				continue;
 			}
 			data.headers.set(header, value);
+		}
+	}
+
+	if(req.body instanceof Buffer && req.body.length > 0) {
+		const content_type = data.headers.get('content-type');
+		if(content_type !== undefined && is_content_printable(content_type[0])) {
+			data.body = req.body.toString('utf8');
+		} else {
+			data.body = req.body;
 		}
 	}
 
