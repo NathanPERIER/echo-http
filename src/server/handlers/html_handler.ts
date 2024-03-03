@@ -1,4 +1,5 @@
 import { RequestData } from '../data.js';
+import { hexdump } from '../../utils/binary.js';
 import async_fs from 'fs/promises';
 import path from 'path';
 import escape from 'escape-html';
@@ -14,7 +15,7 @@ async function read_assets(assets_path: string): Promise<HtmlAssets> {
         styles: []
     };
     assets.styles.push(
-        (await async_fs.readFile(path.join(assets_path, "styles/style.css"), 'utf-8')).one_line()
+        (await async_fs.readFile(path.join(assets_path, "styles/style.css"), 'utf8')).one_line()
     );
 	const icon_path = path.join(assets_path, "icon/favicon.ico");
 	try {
@@ -105,6 +106,18 @@ export function handle_html(req: RequestData): {lines: string[], content_type: s
 			lines.push('\t\t\t</tr>');
 		}
 		lines.push('\t\t</table>');
+	}
+
+	if(req.body !== null) {
+		lines.push('\t\t<h3>Body</h3>');
+		if(req.body instanceof Buffer) {
+			let dump = hexdump(req.body);
+			dump[0] = `\t\t<code data-block id="body-text">${dump[0]}`;
+			dump[dump.length - 1] += "</code>"
+			lines.push(...dump);
+		} else {
+			lines.push(`\t\t<code data-block id="body-text">${escape(req.body)}</code>`);
+		}
 	}
 
 // 		<h3>Body</h3>

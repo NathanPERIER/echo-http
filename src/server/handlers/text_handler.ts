@@ -1,4 +1,5 @@
 import { RequestData } from '../data.js';
+import { hexdump } from '../../utils/binary.js';
 
 
 function draw_table(titles: [string, string], cols: Map<string, string[]>): string[] {
@@ -61,8 +62,15 @@ export function handle_text(req: RequestData): {lines: string[], content_type: s
 		lines.push('');
 	}
 
-// 		### Body
-// 		hexdump / print
+    if(req.body !== null) {
+        lines.push('### Body', '');
+        if(req.body instanceof Buffer) {
+            lines.push(...hexdump(req.body));
+        } else {
+            lines.push(req.body);
+        }
+        lines.push('');
+    }
 
 	return { lines: lines, content_type: 'text/plain' };
 }
