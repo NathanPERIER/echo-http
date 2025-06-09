@@ -11,4 +11,4 @@ RUN npm install --omit=dev && npm run build
 
 ENV ECHO_PORT=8080
 
-ENTRYPOINT npm run start
+ENTRYPOINT ["npm", "run", "start"]
